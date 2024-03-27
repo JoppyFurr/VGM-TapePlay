@@ -68,7 +68,17 @@ build_vgm_tapeplay ()
             -o "build/${file}.rel" "source/${file}.c" || exit 1
     done
 
-    # Memory layout:
+    # Also generate an SG-1000 ROM for quick testing.
+    echo ""
+    echo "  Linking (ROM)..."
+    ${sdcc} -o build/VGM-TapePlay.ihx -mz80 --no-std-crt0 --data-loc 0xC000 ${devkitSMS}/crt0/crt0_sg.rel build/*.rel ${SGlib}/SGlib.rel || exit 1
+
+    echo ""
+    echo "  Generating ROM..."
+    ${ihx2sms} build/VGM-TapePlay.ihx VGM-TapePlay.sg || exit 1
+
+
+    # Tape Memory layout:
     #
     #   0x0000 -- 0x7fff BASIC ROM
     #   0x8000 -- 0x97ff RAM, previously reserved for use by BASIC
@@ -78,17 +88,17 @@ build_vgm_tapeplay ()
     # to poll for the VDP interrupt status bit.
 
     echo ""
-    echo "  Linking..."
-    ${sdcc} -o build/VGM-TapePlay.ihx -mz80 --no-std-crt0 --code-loc 0x9800 --data-loc 0x8000 \
+    echo "  Linking (tape)..."
+    ${sdcc} -o build/VGM-TapePlay-tape.ihx -mz80 --no-std-crt0 --code-loc 0x9800 --data-loc 0x8000 \
         ${crt0_sc_tape}/crt0_sg.rel build/*.rel ${SGlib_sc_tape}/SGlib.rel || exit 1
 
     echo ""
-    echo "  Generating ROM..."
+    echo "  Generating Tape..."
     # For now, just use ihx2sms as we've already got a copy. In the future, another tool may give
     # a better filesize as we don't really want it rounded to the nearest 16k multiple.
-    ${ihx2sms} build/VGM-TapePlay.ihx build/VGM-TapePlay.bin || exit 1
-    dd if=build/VGM-TapePlay.bin of=build/VGM-TapePlay_trimmed.bin bs=1K skip=38
-    ${tapewave} "VGM-TapePlay" build/VGM-TapePlay_trimmed.bin VGM-TapePlay.wav
+    ${ihx2sms} build/VGM-TapePlay-tape.ihx build/VGM-TapePlay-tape.bin || exit 1
+    dd if=build/VGM-TapePlay-tape.bin of=build/VGM-TapePlay-tape_trimmed.bin bs=1K skip=38
+    ${tapewave} "VGM-TapePlay" build/VGM-TapePlay-tape_trimmed.bin VGM-TapePlay.wav
 
     echo ""
     echo "  Done"
