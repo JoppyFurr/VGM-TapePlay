@@ -16,6 +16,7 @@ typedef struct pixel_s {
 
 typedef enum target_e {
     VDP_MODE_0 = 0,
+    VDP_MODE_2,
     VDP_MODE_4
 } target_t;
 

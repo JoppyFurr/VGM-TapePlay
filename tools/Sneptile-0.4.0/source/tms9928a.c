@@ -96,7 +96,7 @@ int tms9928a_open_files (void)
         fprintf (stderr, "Unable to open output file colour_table.h\n");
         return RC_ERROR;
     }
-    fprintf (colour_table_file, "static const uint8_t colour_table [] = {\n");
+    fprintf (colour_table_file, "static const %s colour_table [] = {\n", (target == VDP_MODE_0) ? "uint8_t" : "uint32_t");
 
     if (output_dir != NULL)
     {
@@ -114,7 +114,7 @@ int tms9928a_open_files (void)
  */
 static void tms9928a_emit_pattern (uint8_t *pattern_lines)
 {
-    /* Indent at the start of  each line, plus spaces between patterns */
+    /* Indent at the start of each line, plus spaces between 4-byte words. */
     fprintf (pattern_file, "%s", line_pattern_index == 0 ? "    " : " ");
 
     fprintf (pattern_file, "0x%02x%02x%02x%02x, 0x%02x%02x%02x%02x,",
@@ -132,9 +132,9 @@ static void tms9928a_emit_pattern (uint8_t *pattern_lines)
 
 
 /*
- * Output an entry to the colour table file.
+ * Output an entry to the mode-0 colour table file.
  */
-static void tms9928a_emit_ct_entry (void)
+static void tms9928a_mode0_emit_ct_entry (void)
 {
     /* Eight entries per line. Indent at the start of each line, plus spaces between entries. */
     fprintf (colour_table_file, "%s", line_ct_index == 0 ? "    " : " ");
@@ -143,6 +143,28 @@ static void tms9928a_emit_ct_entry (void)
     line_ct_index++;
 
     if (line_ct_index == 8)
+    {
+        fprintf (colour_table_file, "\n");
+        line_ct_index = 0;
+    }
+}
+
+
+/*
+ * Output an entry to the mode-2 colour table file.
+ */
+static void tms9928a_mode2_emit_ct_entry (uint8_t *ct_lines)
+{
+    /* Indent at the start of each line, plus spaces between 4-byte words. */
+    fprintf (colour_table_file, "%s", line_ct_index == 0 ? "    " : " ");
+
+    fprintf (colour_table_file, "0x%02x%02x%02x%02x, 0x%02x%02x%02x%02x,",
+             ct_lines [3], ct_lines [2], ct_lines [1], ct_lines [0],
+             ct_lines [7], ct_lines [6], ct_lines [5], ct_lines [4]);
+
+    line_ct_index++;
+
+    if (line_ct_index == 4)
     {
         fprintf (colour_table_file, "\n");
         line_ct_index = 0;
@@ -165,10 +187,11 @@ int tms9928a_close_files (void)
     pattern_index_file = NULL;
 
     /* Colour table file */
-    if (pattern_index % 8 != 0)
+    if (target == VDP_MODE_0 && pattern_index % 8 != 0)
     {
-        tms9928a_emit_ct_entry ();
+        tms9928a_mode0_emit_ct_entry ();
     }
+
     fprintf (colour_table_file, "%s};\n", line_ct_index != 0 ? "\n" : "");
     fclose (colour_table_file);
     colour_table_file = NULL;
@@ -187,6 +210,13 @@ void tms9928a_new_input_first_tile (void)
     /* Mark in patterns file */
     fprintf (pattern_file, "%s\n    /* %s */\n", line_pattern_index != 0 ? "\n" : "", name);
     line_pattern_index = 0;
+
+    if (target == VDP_MODE_2)
+    {
+        /* Mark in colour-table file */
+        fprintf (colour_table_file, "%s\n    /* %s */\n", line_ct_index != 0 ? "\n" : "", name);
+        line_ct_index = 0;
+    }
 
     /* Generate pattern index define */
     fprintf (pattern_index_file, "#define PATTERN_");
@@ -288,11 +318,11 @@ static uint8_t tms9928a_rgb_to_ct_bit (pixel_t p)
  * Generate a one-tile colour-table entry, used for checking
  * compatibility within a mode-0 block of eight.
  */
-static void tms9928a_generate_ct_test_entry (pixel_t *buffer, uint32_t stride)
+static void tms9928a_generate_ct_test_entry (pixel_t *buffer, uint32_t stride, uint32_t lines)
 {
     test_ct_entry_size = 0;
 
-    for (uint32_t y = 0; y < 8; y++)
+    for (uint32_t y = 0; y < lines; y++)
     {
         for (uint32_t x = 0; x < 8; x++)
         {
@@ -367,37 +397,54 @@ static bool tms9928a_check_ct_compatible (void)
 void tms9928a_process_tile (pixel_t *buffer, uint32_t stride)
 {
     uint8_t pattern_lines [8] = { };
+    uint8_t pattern_colours [8] = { }; /* For mode-2 */
 
-    /* First, generate the palette we'd need for this tile so that
-     * we can check it against the limitations of the tms9928a. */
-    tms9928a_generate_ct_test_entry (buffer, stride);
-
-    /* In mode-0, each tile is allowed only two colours. */
-    if (test_ct_entry_size > 2)
+    if (target == VDP_MODE_0)
     {
-        fprintf (stderr, "Error: Tile contains too many colours for mode-0.\n");
-        return;
-    }
+        /* First, generate the palette we'd need for this tile so that
+         * we can check it against the limitations of the mode-0. */
+        tms9928a_generate_ct_test_entry (buffer, stride, 8);
 
-    /* If the colours are not compatible, we need to emit dummy
-     * tiles until we reach the next block of eight patterns so
-     * that the palette can be reset. */
-    if (!tms9928a_check_ct_compatible ())
-    {
-        if (pattern_index % 8 != 0)
+        /* In mode-0, each tile is allowed only two colours. */
+        if (test_ct_entry_size > 2)
         {
-            while (pattern_index % 8 != 0)
-            {
-                tms9928a_emit_pattern (pattern_lines);
-                pattern_index++;
-            }
-            tms9928a_emit_ct_entry ();
+            fprintf (stderr, "Error: Tile contains too many colours for mode-0.\n");
+            return;
         }
-        ct_entry_size = 0;
+
+        /* If the colours are not compatible, we need to emit dummy
+         * tiles until we reach the next block of eight patterns so
+         * that the palette can be reset. */
+        if (!tms9928a_check_ct_compatible ())
+        {
+            if (pattern_index % 8 != 0)
+            {
+                while (pattern_index % 8 != 0)
+                {
+                    tms9928a_emit_pattern (pattern_lines);
+                    pattern_index++;
+                }
+                tms9928a_mode0_emit_ct_entry ();
+            }
+            ct_entry_size = 0;
+        }
     }
 
     for (uint32_t y = 0; y < 8; y++)
     {
+        /* Each pattern line on mode-2 gets its own colour table entry */
+        if (target == VDP_MODE_2)
+        {
+            /* Check if this line contains more than two colours. */
+            tms9928a_generate_ct_test_entry (&buffer [y * stride], stride, 1);
+            if (test_ct_entry_size > 2)
+            {
+                fprintf (stderr, "Error: Line contains too many colours for mode-0.\n");
+                return;
+            }
+            ct_entry_size = 0;
+        }
+
         for (uint32_t x = 0; x < 8; x++)
         {
             pixel_t p = buffer [x + y * stride];
@@ -408,6 +455,12 @@ void tms9928a_process_tile (pixel_t *buffer, uint32_t stride)
             {
                 pattern_lines [y] |= (1 << (7 - x));
             }
+        }
+
+        /* Each pattern line on mode-2 gets its own colour table entry */
+        if (target == VDP_MODE_2)
+        {
+            pattern_colours [y] = (ct_entry [0] & 0x0f) | ((ct_entry [1] << 4) & 0xf0);
         }
     }
 
@@ -420,9 +473,16 @@ void tms9928a_process_tile (pixel_t *buffer, uint32_t stride)
     tms9928a_emit_pattern (pattern_lines);
 
     /* Emit a colour-table entry */
-    if (pattern_index % 8 == 7)
+    if (target == VDP_MODE_0)
     {
-        tms9928a_emit_ct_entry ();
+        if (pattern_index % 8 == 7)
+        {
+            tms9928a_mode0_emit_ct_entry ();
+        }
+    }
+    else
+    {
+        tms9928a_mode2_emit_ct_entry (pattern_colours);
     }
 
     pattern_index++;

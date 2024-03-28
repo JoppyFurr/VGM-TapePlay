@@ -11,7 +11,7 @@ devkitSMS="${HOME}/Code/devkitSMS"
 SMSlib="${devkitSMS}/SMSlib"
 SGlib="${devkitSMS}/SGlib"
 ihx2sms="${devkitSMS}/ihx2sms/Linux/ihx2sms"
-sneptile="./tools/Sneptile-0.3.0/Sneptile"
+sneptile="./tools/Sneptile-0.4.0/Sneptile"
 
 # SC-3000 Tape Support
 crt0_sc_tape="./tools/crt0_sc_tape"
@@ -22,16 +22,16 @@ build_sneptile ()
 {
     # Early return if we've already got an up-to-date build
     if [ -e $sneptile \
-         -a "./tools/Sneptile-0.3.0/source/main.c" -ot $sneptile \
-         -a "./tools/Sneptile-0.3.0/source/sms_vdp.c" -ot $sneptile \
-         -a "./tools/Sneptile-0.3.0/source/tms9928a.c" -ot $sneptile ]
+         -a "./tools/Sneptile-0.4.0/source/main.c" -ot $sneptile \
+         -a "./tools/Sneptile-0.4.0/source/sms_vdp.c" -ot $sneptile \
+         -a "./tools/Sneptile-0.4.0/source/tms9928a.c" -ot $sneptile ]
     then
         return
     fi
 
     echo "Building Sneptile..."
     (
-        cd "tools/Sneptile-0.3.0"
+        cd "tools/Sneptile-0.4.0"
         ./build.sh
     )
 }

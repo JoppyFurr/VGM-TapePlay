@@ -39,6 +39,7 @@ static int sneptile_process_image (pixel_t *buffer, uint32_t width, uint32_t hei
     switch (target)
     {
         case VDP_MODE_0:
+        case VDP_MODE_2:
             tms9928a_new_input_file (name);
             break;
         case VDP_MODE_4:
@@ -62,6 +63,7 @@ static int sneptile_process_image (pixel_t *buffer, uint32_t width, uint32_t hei
             switch (target)
             {
                 case VDP_MODE_0:
+                case VDP_MODE_2:
                     tms9928a_process_tile (&buffer [row * width + col], width);
                     break;
                 case VDP_MODE_4:
@@ -190,6 +192,12 @@ int main (int argc, char **argv)
         argv += 1;
         argc -= 1;
     }
+    else if (strcmp (argv [0], "--mode-2") == 0)
+    {
+        target = VDP_MODE_2;
+        argv += 1;
+        argc -= 1;
+    }
 
     /* User-specified output directory */
     if (strcmp (argv [0], "--output") == 0 && argc > 2)
@@ -225,6 +233,7 @@ int main (int argc, char **argv)
     switch (target)
     {
         case VDP_MODE_0:
+        case VDP_MODE_2:
             rc = tms9928a_open_files ();
             break;
         case VDP_MODE_4:
@@ -252,6 +261,7 @@ int main (int argc, char **argv)
         switch (target)
         {
             case VDP_MODE_0:
+            case VDP_MODE_2:
                 rc = tms9928a_close_files ();
                 break;
             case VDP_MODE_4:

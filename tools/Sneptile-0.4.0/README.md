@@ -5,8 +5,10 @@ Sneptile is a tool for converting images into tile data for the Sega Master Syst
 Input images should have a width and height that are multiples of 8px.
 Tiles are generated left-to-right, top-to-bottom, first file to last file.
 
-Usage: `./Sneptile --output tile_data --palette 0x04 0x19 empty.png cursor.png`
+Usage: `./Sneptile [--mode-0] --output tile_data --palette 0x04 0x19 empty.png cursor.png`
 
+ * `--mode-0`: Generate Mode-0 tiles.
+ * `--mode-2`: Generate Mode-2 tiles.
  * `--output <dir>`: specifies the directory for the generated files
  * `--palette <0x...>`: specifies the first n entries of the palette
  * `... <.png>`: the remaining parameters are `.png` images to generate tiles from
@@ -57,6 +59,47 @@ re-use on the Game Gear.
 
 To select the correct palette, you will need to define one of `TARGET_SMS` or `TARGET_GG`.
 
+## TMS99xx Mode-0 and Mode-2
+
+Initial support is also available for Mode-0 and Mode-2 of the TMS9918 family.
+
+Three files are output:
+ * `pattern.h`: Contains the pattern data to load into the VDP.
+ * `pattern_index.h`: Contains the index of the first tile from each image file.
+ * `colour_table.h`: Contains the colour table to load into the VDP.
+
+Note that, in Mode-0, groups of eight tiles in the pattern table are required
+to share a common two-colour entry in the colour table.
+
+If these two colours change between images, or between tiles within the same
+image, then all-zero tiles will be added to pad out the remaining tiles in the
+block of eight.
+
+To keep offsets from the defines in `pattern_index.h` useful, it is recommended
+to use only two colours per file.
+
+The input files should use the gamma-corrected palette:
+```c
+/* TMS9928a palette (gamma corrected) */
+static const pixel_t tms9928a_palette [16] = {
+    { .r = 0x00, .g = 0x00, .b = 0x00 },    /* Transparent */
+    { .r = 0x00, .g = 0x00, .b = 0x00 },    /* Black */
+    { .r = 0x0a, .g = 0xad, .b = 0x1e },    /* Medium Green */
+    { .r = 0x34, .g = 0xc8, .b = 0x4c },    /* Light Green */
+    { .r = 0x2b, .g = 0x2d, .b = 0xe3 },    /* Dark Blue */
+    { .r = 0x51, .g = 0x4b, .b = 0xfb },    /* Light Blue */
+    { .r = 0xbd, .g = 0x29, .b = 0x25 },    /* Dark Red */
+    { .r = 0x1e, .g = 0xe2, .b = 0xef },    /* Cyan */
+    { .r = 0xfb, .g = 0x2c, .b = 0x2b },    /* Medium Red */
+    { .r = 0xff, .g = 0x5f, .b = 0x4c },    /* Light Red */
+    { .r = 0xbd, .g = 0xa2, .b = 0x2b },    /* Dark Yellow */
+    { .r = 0xd7, .g = 0xb4, .b = 0x54 },    /* Light Yellow */
+    { .r = 0x0a, .g = 0x8c, .b = 0x18 },    /* Dark Green */
+    { .r = 0xaf, .g = 0x32, .b = 0x9a },    /* Magenta */
+    { .r = 0xb2, .g = 0xb2, .b = 0xb2 },    /* Grey */
+    { .r = 0xff, .g = 0xff, .b = 0xff }     /* White */
+};
+```
 
 ## Dependencies
  * zlib
