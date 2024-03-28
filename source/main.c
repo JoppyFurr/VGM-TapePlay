@@ -10,6 +10,7 @@
 
 #include "SGlib.h"
 __sfr __at 0x7f psg_port;
+__sfr __at 0xbf vdp_control_port;
 
 #define TONE_0_BIT      0x01
 #define TONE_1_BIT      0x02
@@ -20,7 +21,28 @@ __sfr __at 0x7f psg_port;
 #define VOLUME_2_BIT    0x40
 #define VOLUME_3_BIT    0x80
 
+#include "../tile_data/pattern.h"
+#include "../tile_data/pattern_index.h"
+#include "../tile_data/colour_table.h"
 #include "../music/aqua_lake.h"
+
+static const uint8_t underline [16] = {
+    PATTERN_PLAYER + 1, PATTERN_PLAYER + 1, PATTERN_PLAYER + 1, PATTERN_PLAYER + 1,
+    PATTERN_PLAYER + 1, PATTERN_PLAYER + 1, PATTERN_PLAYER + 1, PATTERN_PLAYER + 1,
+    PATTERN_PLAYER + 1, PATTERN_PLAYER + 1, PATTERN_PLAYER + 1, PATTERN_PLAYER + 1,
+    PATTERN_PLAYER + 1, PATTERN_PLAYER + 1, PATTERN_PLAYER + 1, PATTERN_PLAYER + 1
+};
+
+static const uint8_t bar_black   [2] = { PATTERN_PLAYER +  0, PATTERN_PLAYER +  0 };
+static const uint8_t bar_green_1 [2] = { PATTERN_PLAYER +  2, PATTERN_PLAYER +  2 };
+static const uint8_t bar_green_2 [2] = { PATTERN_PLAYER +  3, PATTERN_PLAYER +  3 };
+static const uint8_t bar_green_3 [2] = { PATTERN_PLAYER +  4, PATTERN_PLAYER +  4 };
+static const uint8_t bar_amber_1 [2] = { PATTERN_PLAYER +  5, PATTERN_PLAYER +  5 };
+static const uint8_t bar_amber_2 [2] = { PATTERN_PLAYER +  6, PATTERN_PLAYER +  6 };
+static const uint8_t bar_amber_3 [2] = { PATTERN_PLAYER +  7, PATTERN_PLAYER +  7 };
+static const uint8_t bar_red_1   [2] = { PATTERN_PLAYER +  8, PATTERN_PLAYER +  8 };
+static const uint8_t bar_red_2   [2] = { PATTERN_PLAYER +  9, PATTERN_PLAYER +  9 };
+static const uint8_t bar_red_3   [2] = { PATTERN_PLAYER + 10, PATTERN_PLAYER + 10 };
 
 static uint16_t outer_index = 0; /* Index into the compressed index_data */
 static uint16_t inner_index = 0; /* Index when expanding references into index_data */
@@ -36,6 +58,83 @@ static bool nibble_high = false;
 inline void psg_write (uint8_t data)
 {
     psg_port = data;
+}
+
+
+/*
+ * Fill the name table with tile-zero.
+ */
+void clear_screen (void)
+{
+    uint8_t blank_line [32] = { 0 };
+
+    for (uint8_t row = 0; row < 24; row++)
+    {
+        SG_loadTileMap (0, row, blank_line, sizeof (blank_line));
+    }
+}
+
+
+/*
+ * Update a bar graph.
+ *
+ * TODO: Should the drop be limited to one or two bars per frame?
+ *       Some music looks a bit flickery, particularly in the noise channel.
+ */
+static void bar_update (uint8_t bar, uint8_t value)
+{
+    static uint8_t previous [4] = { 15, 15, 15, 15 };
+    uint8_t x = 9 + (bar << 2);
+
+    /* Range of tiles that need to be updated */
+    uint8_t first = (((value < previous [bar]) ? value : previous [bar]) + 1) >> 1;
+    uint8_t last =   (((value > previous [bar]) ? value : previous [bar]) + 1) >> 1;
+
+    /* Uses fall-through */
+    switch (first)
+    {
+        case 0:
+            SG_loadTileMap (x, 7, (value == 0) ? bar_red_3 : bar_black, 2);
+            if (last == 0) break;
+        case 1:
+            SG_loadTileMap (x, 8, (value < 1) ? bar_red_2 :
+                                  (value < 2) ? bar_red_1 :
+                                  (value < 3) ? bar_amber_3 : bar_black, 2);
+            if (last == 1) break;
+        case 2:
+            SG_loadTileMap (x, 9, (value < 3) ? bar_amber_2 :
+                                  (value < 4) ? bar_amber_1 :
+                                  (value < 5) ? bar_green_1 : bar_black, 2);
+            if (last == 2) break;
+        case 3:
+            SG_loadTileMap (x, 10, (value < 5) ? bar_green_3 :
+                                   (value < 6) ? bar_green_2 :
+                                   (value < 7) ? bar_green_1 : bar_black, 2);
+            if (last == 3) break;
+        case 4:
+            SG_loadTileMap (x, 11, (value < 7) ? bar_green_3 :
+                                   (value < 8) ? bar_green_2 :
+                                   (value < 9) ? bar_green_1 : bar_black, 2);
+            if (last == 4) break;
+        case 5:
+            SG_loadTileMap (x, 12, (value < 9)  ? bar_green_3 :
+                                   (value < 10) ? bar_green_2 :
+                                   (value < 11) ? bar_green_1 : bar_black, 2);
+            if (last == 5) break;
+        case 6:
+            SG_loadTileMap (x, 13, (value < 11) ? bar_green_3 :
+                                   (value < 12) ? bar_green_2 :
+                                   (value < 13) ? bar_green_1 : bar_black, 2);
+            if (last == 6) break;
+        case 7:
+            SG_loadTileMap (x, 14, (value < 13) ? bar_green_3 :
+                                   (value < 14) ? bar_green_2 :
+                                   (value < 15) ? bar_green_1 : bar_black, 2);
+        case 8:
+            break;
+    }
+
+    previous [bar] = value;
 }
 
 
@@ -149,21 +248,25 @@ static void tick (void)
         {
             data = nibble_read ();
             psg_write (0x80 | 0x10 | data);
+            bar_update (0, data);
         }
         if (frame & VOLUME_1_BIT)
         {
             data = nibble_read ();
             psg_write (0x80 | 0x30 | data);
+            bar_update (1, data);
         }
         if (frame & VOLUME_2_BIT)
         {
             data = nibble_read ();
             psg_write (0x80 | 0x50 | data);
+            bar_update (2, data);
         }
         if (frame & VOLUME_3_BIT)
         {
             data = nibble_read ();
             psg_write (0x80 | 0x70 | data);
+            bar_update (3, data);
         }
 
         nibble_done ();
@@ -190,11 +293,26 @@ static void tick (void)
  */
 int main (void)
 {
-    /* Default register values */
+    /* Default PSG register values */
     psg_write (0x80 | 0x1f); /* Mute Tone0 */
     psg_write (0x80 | 0x3f); /* Mute Tone1 */
     psg_write (0x80 | 0x5f); /* Mute Tone2 */
     psg_write (0x80 | 0x7f); /* Mute Noise */
+
+    /* Configure VDP so that all three slices of the screen share the same mode-2 tiles. */
+    vdp_control_port = 0x9f; /* Colour table address/mask */
+    vdp_control_port = 0x83;
+    vdp_control_port = 0x00; /* Pattern table address/mask */
+    vdp_control_port = 0x84;
+
+    /* Load tiles */
+    SG_loadTilePatterns (patterns, 0, sizeof (patterns));
+    SG_loadTileColours (colour_table, 0, sizeof (colour_table));
+    SG_setBackdropColor (1); /* Black */
+
+    /* Set up the display */
+    clear_screen ();
+    SG_loadTileMap (8, 16, underline, sizeof (underline));
 
     SG_displayOn ();
 

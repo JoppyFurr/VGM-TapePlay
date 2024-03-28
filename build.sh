@@ -59,6 +59,15 @@ build_vgm_tapeplay ()
     echo "Building VGM-TapePlay for SC-3000 Tape..."
     rm -rf build tile_data
 
+    echo "  Generating tile data..."
+    mkdir -p tile_data
+    (
+        # Note, tiles are organized so that similar-coloured files are
+        # together, as they can share a mode-0 colour-table entry.
+        $sneptile --mode-2 --output tile_data \
+            tiles/player.png
+    )
+
     mkdir -p build
     echo "  Compiling..."
     for file in main
