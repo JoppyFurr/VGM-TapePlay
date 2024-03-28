@@ -106,6 +106,17 @@ build_vgm_tapeplay ()
     objcopy -Iihex -Obinary build/VGM-TapePlay-tape.ihx build/VGM-TapePlay-tape.bin
     ${tapewave} "VGM-TapePlay" build/VGM-TapePlay-tape.bin VGM-TapePlay.wav
 
+    # Sanity-check the size
+    SIZE="$(wc -c build/VGM-TapePlay-tape.bin | cut -d ' ' -f 1)"
+    echo "    Size is ${SIZE} bytes."
+    if [ ${SIZE} -gt 26624 ]
+    then
+        echo "    WARNING: Cassette too large for BASIC IIIa or BASIC IIIb."
+    elif [ ${SIZE} -gt 12288 ]
+    then
+        echo "    WARNING: Cassette too large for BASIC IIIa. Okay for BASIC IIIb."
+    fi
+
     echo ""
     echo "  Done"
 }
