@@ -24,7 +24,7 @@ __sfr __at 0xbf vdp_control_port;
 #include "../tile_data/pattern.h"
 #include "../tile_data/pattern_index.h"
 #include "../tile_data/colour_table.h"
-#include "../music/aqua_lake.h"
+#include "../music_data/music.h"
 
 static const uint8_t underline [16] = {
     PATTERN_PLAYER + 1, PATTERN_PLAYER + 1, PATTERN_PLAYER + 1, PATTERN_PLAYER + 1,

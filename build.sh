@@ -6,6 +6,9 @@ echo "-------------------------------"
 # Exit on first error.
 set -e
 
+INPUT_FILE="none"
+PAL_MODE="no"
+
 sdcc="${HOME}/Code/sdcc-4.3.0/bin/sdcc"
 devkitSMS="${HOME}/Code/devkitSMS"
 SMSlib="${devkitSMS}/SMSlib"
@@ -54,19 +57,31 @@ build_tapewave ()
 }
 
 
+build_vgm_convert ()
+{
+    gcc source/vgm_convert/vgm_convert.c \
+    source/vgm_convert/vgm_read.c \
+    -o vgm_convert -lz
+}
+
+
 build_vgm_tapeplay ()
 {
     echo "Building VGM-TapePlay for SC-3000 Tape..."
-    rm -rf build tile_data
+    rm -rf build tile_data music_data
 
     echo "  Generating tile data..."
     mkdir -p tile_data
-    (
-        # Note, tiles are organized so that similar-coloured files are
-        # together, as they can share a mode-0 colour-table entry.
-        $sneptile --mode-2 --output tile_data \
-            tiles/player.png
-    )
+    $sneptile --mode-2 --output tile_data tiles/player.png
+
+    echo "  Generating music data... (${INPUT_FILE})"
+    mkdir -p music_data
+    if [ "${PAL_MODE}" = "yes" ]
+    then
+        ./vgm_convert --pal "${INPUT_FILE}" > music_data/music.h
+    else
+        ./vgm_convert "${INPUT_FILE}" > music_data/music.h
+    fi
 
     mkdir -p build
     echo "  Compiling..."
@@ -121,6 +136,23 @@ build_vgm_tapeplay ()
     echo "  Done"
 }
 
+
+# Check parameters.
+if [ $# -eq 0 ]
+then
+    echo  "Usage: $0 [--pal] <input_file.vgm>"
+    exit
+fi
+
+if [ "${1}" = "--pal" ]
+then
+    PAL_MODE="yes"
+    shift
+fi
+
+INPUT_FILE="${1}"
+
 build_sneptile
 build_tapewave
+build_vgm_convert
 build_vgm_tapeplay
