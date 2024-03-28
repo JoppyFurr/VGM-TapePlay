@@ -74,17 +74,17 @@ build_vgm_tapeplay ()
     do
         echo "   -> ${file}.c"
         ${sdcc} -c -mz80 --peep-file ${devkitSMS}/SGlib/peep-rules.txt -I ${SGlib}/src \
-            -o "build/${file}.rel" "source/${file}.c" || exit 1
+            -o "build/${file}.rel" "source/${file}.c"
     done
 
     # Also generate an SG-1000 ROM for quick testing.
     echo ""
     echo "  Linking (ROM)..."
-    ${sdcc} -o build/VGM-TapePlay.ihx -mz80 --no-std-crt0 --data-loc 0xC000 ${devkitSMS}/crt0/crt0_sg.rel build/*.rel ${SGlib}/SGlib.rel || exit 1
+    ${sdcc} -o build/VGM-TapePlay.ihx -mz80 --no-std-crt0 --data-loc 0xC000 ${devkitSMS}/crt0/crt0_sg.rel build/*.rel ${SGlib}/SGlib.rel
 
     echo ""
     echo "  Generating ROM..."
-    ${ihx2sms} build/VGM-TapePlay.ihx VGM-TapePlay.sg || exit 1
+    ${ihx2sms} build/VGM-TapePlay.ihx VGM-TapePlay.sg
 
 
     # Tape Memory layout:
@@ -99,15 +99,12 @@ build_vgm_tapeplay ()
     echo ""
     echo "  Linking (tape)..."
     ${sdcc} -o build/VGM-TapePlay-tape.ihx -mz80 --no-std-crt0 --code-loc 0x9800 --data-loc 0x8000 \
-        ${crt0_sc_tape}/crt0_sg.rel build/*.rel ${SGlib_sc_tape}/SGlib.rel || exit 1
+        ${crt0_sc_tape}/crt0_sg.rel build/*.rel ${SGlib_sc_tape}/SGlib.rel
 
     echo ""
     echo "  Generating Tape..."
-    # For now, just use ihx2sms as we've already got a copy. In the future, another tool may give
-    # a better filesize as we don't really want it rounded to the nearest 16k multiple.
-    ${ihx2sms} build/VGM-TapePlay-tape.ihx build/VGM-TapePlay-tape.bin || exit 1
-    dd if=build/VGM-TapePlay-tape.bin of=build/VGM-TapePlay-tape_trimmed.bin bs=1K skip=38
-    ${tapewave} "VGM-TapePlay" build/VGM-TapePlay-tape_trimmed.bin VGM-TapePlay.wav
+    objcopy -Iihex -Obinary build/VGM-TapePlay-tape.ihx build/VGM-TapePlay-tape.bin
+    ${tapewave} "VGM-TapePlay" build/VGM-TapePlay-tape.bin VGM-TapePlay.wav
 
     echo ""
     echo "  Done"
