@@ -299,15 +299,12 @@ int main (void)
     psg_write (0x80 | 0x5f); /* Mute Tone2 */
     psg_write (0x80 | 0x7f); /* Mute Noise */
 
-    /* Configure VDP so that all three slices of the screen share the same mode-2 tiles. */
-    vdp_control_port = 0x9f; /* Colour table address/mask */
-    vdp_control_port = 0x83;
-    vdp_control_port = 0x00; /* Pattern table address/mask */
-    vdp_control_port = 0x84;
-
-    /* Load tiles */
-    SG_loadTilePatterns (patterns, 0, sizeof (patterns));
-    SG_loadTileColours (colour_table, 0, sizeof (colour_table));
+    /* Load tiles for all three screen-slices */
+    for (uint16_t slice = 0x000; slice < 0x300; slice += 0x100)
+    {
+        SG_loadTilePatterns (patterns, slice, sizeof (patterns));
+        SG_loadTileColours (colour_table, slice, sizeof (colour_table));
+    }
     SG_setBackdropColor (1); /* Black */
 
     /* Set up the display */
