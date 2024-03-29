@@ -18,7 +18,6 @@ sneptile="./tools/Sneptile-0.4.0/Sneptile"
 
 # SC-3000 Tape Support
 crt0_sc_tape="./tools/crt0_sc_tape"
-SGlib_sc_tape="./tools/SGlib_sc_tape"
 tapewave="./tools/SC-TapeWave/tapewave"
 
 build_sneptile ()
@@ -106,15 +105,16 @@ build_vgm_tapeplay ()
     #
     #   0x0000 -- 0x7fff BASIC ROM
     #   0x8000 -- 0x97ff RAM, previously reserved for use by BASIC
-    #   0x9800 -- 0xc800 Program storage. 12 kB for BASIC IIIa, or 26 kB for BASIC IIIb
+    #   0x9800 -- 0x989f Header area. Setup code at 0x9800, interrupt vector at 0x9898.
+    #   0x98a0 -- 0xc800 Program storage. 12 kB for BASIC IIIa, or 26 kB for BASIC IIIb
     #
     # A special crt0 is used to handle the new addresses, and a special SGlib is used
     # to poll for the VDP interrupt status bit.
 
     echo ""
     echo "  Linking (tape)..."
-    ${sdcc} -o build/VGM-TapePlay-tape.ihx -mz80 --no-std-crt0 --code-loc 0x9800 --data-loc 0x8000 \
-        ${crt0_sc_tape}/crt0_sg.rel build/*.rel ${SGlib_sc_tape}/SGlib.rel
+    ${sdcc} -o build/VGM-TapePlay-tape.ihx -mz80 --no-std-crt0 --code-loc 0x98a0 --data-loc 0x8000 \
+        ${crt0_sc_tape}/crt0_sg.rel build/*.rel ${SGlib}/SGlib.rel
 
     echo ""
     echo "  Generating Tape..."
