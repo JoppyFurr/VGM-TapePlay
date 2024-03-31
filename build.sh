@@ -108,8 +108,7 @@ build_vgm_tapeplay ()
     #   0x9800 -- 0x989f Header area. Setup code at 0x9800, interrupt vector at 0x9898.
     #   0x98a0 -- 0xc800 Program storage. 12 kB for BASIC IIIa, or 26 kB for BASIC IIIb
     #
-    # A special crt0 is used to handle the new addresses, and a special SGlib is used
-    # to poll for the VDP interrupt status bit.
+    # A special crt0 is used to handle the new addresses and set up interrupt-mode 2.
 
     echo ""
     echo "  Linking (tape)..."

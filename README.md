@@ -1,7 +1,7 @@
 
 # VGM-TapePlay
 
-Sneptile is port of AVR-PSG that runs on the SG-1000 / SC-3000
+VGM-TapePlay is port of AVR-PSG that runs on the SG-1000 / SC-3000
 
 Usage: `./build.sh [--pal] <my_music.vgm>`
 
