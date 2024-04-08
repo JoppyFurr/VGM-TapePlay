@@ -17,7 +17,6 @@ ihx2sms="${devkitSMS}/ihx2sms/Linux/ihx2sms"
 sneptile="./tools/Sneptile-0.4.0/Sneptile"
 
 # SC-3000 Tape Support
-crt0_sc_tape="./tools/crt0_sc_tape"
 tapewave="./tools/SC-TapeWave/tapewave"
 
 build_sneptile ()
@@ -87,8 +86,7 @@ build_vgm_tapeplay ()
     for file in main
     do
         echo "   -> ${file}.c"
-        ${sdcc} -c -mz80 --peep-file ${devkitSMS}/SGlib/peep-rules.txt -I ${SGlib}/src \
-            -o "build/${file}.rel" "source/${file}.c"
+        ${sdcc} -c -mz80 -I ${SGlib}/src -o "build/${file}.rel" "source/${file}.c"
     done
 
     # Also generate an SG-1000 ROM for quick testing.
@@ -113,7 +111,7 @@ build_vgm_tapeplay ()
     echo ""
     echo "  Linking (tape)..."
     ${sdcc} -o build/VGM-TapePlay-tape.ihx -mz80 --no-std-crt0 --code-loc 0x98a0 --data-loc 0x8000 \
-        ${crt0_sc_tape}/crt0_sg.rel build/*.rel ${SGlib}/SGlib.rel
+        ${devkitSMS}/crt0/crt0_BASIC.rel build/*.rel ${SGlib}/SGlib.rel
 
     echo ""
     echo "  Generating Tape..."
